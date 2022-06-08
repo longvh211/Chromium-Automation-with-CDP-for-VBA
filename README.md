@@ -29,4 +29,5 @@ https://github.com/longvh211/Edge-IE-Mode-Automation-with-IES-for-VBA/tree/main
 **Credits**
 
 ChrisK23 for the great original source: https://www.codeproject.com/Tips/5307593/Automate-Chrome-Edge-using-VBA\
+
 PerditionC for plenty of helpful CDP examples: https://github.com/PerditionC/VBAChromeDevProtocol
