@@ -63,7 +63,7 @@ Sub runChrome1()
     Dim chrome As New clsBrowser
     
     chrome.start
-    'chrome.show
+    chrome.show
     chrome.navigate "https://google.de"
                 
     Cells(1, 1) = chrome.serialize()
