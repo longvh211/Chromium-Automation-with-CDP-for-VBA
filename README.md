@@ -18,7 +18,7 @@ The demo file has been prepared to help you get on-board easily with the framewo
 
 **For Installation**
 
-You can download the module files in the import folder and add them to your VBA application using the Import Modules option in the VBIDE screen. Or you can also use the modules already setup in the demo file mentioned above. They are the same modules as well. Note that the modules require Microsoft Scripting Runtime reference for the Dictionary object to work.
+You can download the module files in the import folder and add them to your VBA application using the Import Modules option in the VBIDE screen. Or you can also use the modules already setup in the demo file mentioned above. All these files have been packaged in the Release section as a .zip file for ease of downloading. Note that the modules require Microsoft Scripting Runtime reference for the Dictionary object to work.
 
 **Notes**
 
