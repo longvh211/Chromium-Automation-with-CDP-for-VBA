@@ -12,18 +12,21 @@ Functions that are added over the original:
 4. A method to parse additional arguments to allow setting up a browser automation session with advanced requirements.
 5. A method to easily start Edge or Chrome for automation at the user's choice.
   
-**For a Demo**
+**For Demo**
 
 The demo file has been prepared to help you get on-board easily with the framework. You can download the CDP Framework Excel macro file (.xlsm).
 
-**For installation**
+**For Installation**
 
 You can download the module files in the import folder and add them to your VBA application using the Import Modules option in the VBIDE screen. Or you can also use the modules already setup in the demo file mentioned above. They are the same modules as well. Note that the modules require Microsoft Scripting Runtime reference for the Dictionary object to work.
 
 **Notes**
 
-This framework does not work for Edge IE Mode.
+This framework does not work for Edge IE Mode. For a framework that works on Edge IE Mode, see this git of mine instead:
+
+https://github.com/longvh211/Edge-IE-Mode-Automation-with-IES-for-VBA/tree/main
 
 **Credits**
+
 ChrisK23 for the great original source: https://www.codeproject.com/Tips/5307593/Automate-Chrome-Edge-using-VBA\
 PerditionC for plenty of helpful CDP examples: https://github.com/PerditionC/VBAChromeDevProtocol
