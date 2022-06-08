@@ -1,4 +1,4 @@
-# Chrome-Automation-with-CDP-for-VBA
+# Chrome Automation with CDP for VBA
 This is a method to directly automate Chromium-based web browsers, such as Chrome, Edge, and Firefox, using VBA for Office applications by following the Chrome DevTools Protocol framework. This git is an enhanced framework based on the original pioneering article by ChrisK23 on CodeProject. You can find the original article as well as his example here at https://www.codeproject.com/Tips/5307593/Automate-Chrome-Edge-using-VBA\
 
 **What It Can Do**
