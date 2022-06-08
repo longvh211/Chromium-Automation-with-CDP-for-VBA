@@ -20,6 +20,10 @@ The demo file has been prepared to help you get on-board easily with the framewo
 
 You can download the module files in the import folder and add them to your VBA application using the Import Modules option in the VBIDE screen. Or you can also use the modules already setup in the demo file mentioned above. They are the same modules as well. Note that the modules require Microsoft Scripting Runtime reference for the Dictionary object to work.
 
+**Notes**
+
+This framework does not work for Edge IE Mode.
+
 **Credits**
 ChrisK23 for the great original source: https://www.codeproject.com/Tips/5307593/Automate-Chrome-Edge-using-VBA\
 PerditionC for plenty of helpful CDP examples: https://github.com/PerditionC/VBAChromeDevProtocol
