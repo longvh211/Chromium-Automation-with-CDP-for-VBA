@@ -3,7 +3,7 @@ This is a method to directly automate Chromium-based web browsers, such as Chrom
 
 **What It Can Do**
 
-This method enables direct automation with Chromium-based web browsers for VBA without the need for a third-party tool software as SeleniumBasic. The framework also includes many examples and useful new functions added to the original repository while keeping the whole design as simple as possible to help you understand and get started quickly with deploying the CDP framework for your VBA solutions.
+This method enables direct automation with Chromium-based web browsers for VBA without the need for a third-party tool software like SeleniumBasic. The framework also includes many examples and useful functions added to the original repository while keeping the whole design as simple as possible to help you understand and get started quickly with deploying the CDP framework for your VBA solutions.
 
 Functions that are added over the original:
 1. A method to make the browser visible and invisible.
