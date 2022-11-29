@@ -221,9 +221,7 @@ Public Function init(strExec As String, Optional aboolSerializable As Boolean = 
     Dim k As Long
     
     Dim pipes As STDIO_BUFFER
-    Dim pipes2 As STDIO_BUFFER2
-    
-    boolSerializable = aboolSerializable
+    Dim pipes2 As STDIO_BUFFER2 
 
    'First we create all 4 pipes
    'We start with stdout of the edge process
