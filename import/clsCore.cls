@@ -16,7 +16,9 @@ Attribute VB_Exposed = False
 ' Contributors:
 '       Long Vh (long.hoang.vu@hsbc.com.sg)
 ' Last Update :
-'       03/06/22 - Long Vh: added extensive commentations + refactored codes for HSBC usages
+'       29/11/22 Long Vh: removed the serializability check + class_terminate to keep handles constantly
+'                         open for subsequent deserializations if needed.
+'       03/06/22 Long Vh: added extensive commentations + refactored codes for HSBC usages
 ' Notes       :
 '       This class should only be initiated internally by the clsBrowser class and should not need to be
 '       initiated directly at any times.
@@ -165,7 +167,6 @@ Private hCDPOutWr As LongPtr
 Private hCDPOutRd As LongPtr
 Private hCDPInWr As LongPtr
 Private hCDPInRd As LongPtr
-Private boolSerializable As Boolean
 Private hProcess As LongPtr
 Public jsConverter As New clsJsConverter
 
@@ -176,9 +177,7 @@ Public jsConverter As New clsJsConverter
 Public Function serialize() As String
 '-------------------------------------------------------------------
 ' Create serialized Json string from the current browser instance.
-'-------------------------------------------------------------------
-
-    If Not boolSerializable Then err.Raise -904, Description:="This instance is not allowed to serialize."
+'-------------------------------------------------------------------    
 
     Dim objSerialize As New Dictionary
     
@@ -380,23 +379,3 @@ Public Function writeProc(ByVal strData As String) As Integer
     writeProc = WriteFile(hCDPInWr, ByVal strData, Len(strData), lngWritten, ByVal 0&)
 
 End Function
-
-
-Private Sub Class_Terminate()
-' --------------------------------------------------------------------------------
-' Auto-run when the class is closed.
-'---------------------------------------------------------------------------------
-
-    If boolSerializable Then Exit Sub
-
-    CloseHandle hStdOutRd
-    CloseHandle hStdOutWr
-    CloseHandle hStdInRd
-    CloseHandle hStdInWr
-
-    CloseHandle hCDPOutRd
-    CloseHandle hCDPOutWr
-    CloseHandle hCDPInRd
-    CloseHandle hCDPInWr
-
-End Sub
