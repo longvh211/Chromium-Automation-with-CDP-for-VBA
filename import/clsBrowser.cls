@@ -323,7 +323,9 @@ Public Function wait(Optional till As String = "complete", Optional dbgState As 
 ' To read ReadyState on the go, set the dbgState to True to print the state to the Immediate Window
 ' Original Name: waitCompletion
 '--------------------------------------------------------------------------------------------------
-    
+
+    sleep 0.5   '23/12/22: murrayJc suggested that HTLM document needs some initial startup time to begin updating
+
     Do Until strState = till Or strState = "complete"
         strState = jsEval("document.readyState", dbgMsg:=False)         ' dbgMsg = False to not spam Immediate Window
         If dbgState Then Debug.Print "Current ReadyState: " & strState  ' option to print ReadyState info during iteration
