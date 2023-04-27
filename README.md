@@ -5,7 +5,7 @@ This is a method to directly automate Chromium-based web browsers, such as Chrom
 
 This method enables direct automation with Chromium-based web browsers for VBA without the need for a third-party software like SeleniumBasic. The framework also includes many examples and useful functions added to the original repository while keeping the whole design as simple as possible to help you understand and get started quickly with deploying the CDP framework for your VBA solutions.
 
-Features greatly improved on v2.5:
+Features added on v2.5:
 1. Added getElementByID, getElementByQuery (querySelector equivalence), getElementByXPath, getElementsByQuery, getElementsByXPath.
 2. Added helpful examples to the getElement methods' function definitions for ease of learning and employment.
 3. Overhauled the error debugging system of CDP 1.0. The Immediate Window is now filled with highly detailed and useful debugging information.
