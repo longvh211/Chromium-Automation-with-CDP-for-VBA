@@ -20,11 +20,11 @@ Features greatly improved on v2.5:
 8. Added .html to easily extract the entire html of the current web page. Useful for devs who need the html for processing.
 9. Enhanced .start to automatically detect browser installation path and start the browser there. v1.0 was failing when the user chooses a non-standard path.
 10. Added many functions to easily automate multiple tabs and debugging them:
-   - .getTabNew to quickly get object referrence of the new tab open by the web page.
-   - .getTab to get object referrence of the target tab based on its title or on its url string.
-   - .closeTab to close the target tab and .printTabs to print the info of all the tabs currently open.
-   - .newTab to open a new tab and navigate to a specific Url by the CDP Session.
-   - .printParams to easily retrieve all debugging information of the current tab.
+    - .getTabNew to quickly get object referrence of the new tab open by the web page.
+    - .getTab to get object referrence of the target tab based on its title or on its url string.
+    - .closeTab to close the target tab and .printTabs to print the info of all the tabs currently open.
+    - .newTab to open a new tab and navigate to a specific Url by the CDP Session.
+    - .printParams to easily retrieve all debugging information of the current tab.
 11. Many other minor bug fixes and improvements over the remaining functions.
 
 Functions that are added over the original:
