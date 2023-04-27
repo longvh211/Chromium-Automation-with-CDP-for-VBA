@@ -5,6 +5,22 @@ This is a method to directly automate Chromium-based web browsers, such as Chrom
 
 This method enables direct automation with Chromium-based web browsers for VBA without the need for a third-party software like SeleniumBasic. The framework also includes many examples and useful functions added to the original repository while keeping the whole design as simple as possible to help you understand and get started quickly with deploying the CDP framework for your VBA solutions.
 
+Features greatly improved on v2.5:
+1. Added getElementByID, getElementByQuery (querySelector equivalence), getElementByXPath, getElementsByQuery, getElementsByXPath.
+2. Added helpful examples to the getElement methods' function definitions for ease of learning and employment.
+3. Overhauled the error debugging system of CDP 1.0. The Immediate Window is now filled with highly detailed and useful debugging information.
+4. Added AddJsLib, a powerful function to integrate external JS Library to greatly widen the automation scope of the framework.
+5. Added snapPage to take snapshot of the web page or an element within the page. This demonstrates the power of the AddJsLib function.
+6. No longer required for dev to use .deserialize or .serialize to rehook ongoing CDP Session. This is now done intuitively by the CDPBrowser class.
+7. Added CDPElement class with many element specific methods for HTML element interactions, such as:
+   - .getIFrame to easily access and work on an iFrame element.
+   - .value, .innerHTML, .innerText, .click, .submit, .setAttribute, .fireEvent for diverse interaction needs.
+   - .getParent, .getNextSibling, .getPrevSibling, .getFirstChild for diverse node tree traversal requirements.
+   - .onExist and .onExistNot to smart wait until the target element appears/disappears.
+8. Added .html to easily extract the entire html of the current web page. Useful for devs who need the html for processing.
+9. Enhanced .start to automatically detect browser installation path and start the browser there. v1.0 was failing when the user chooses a non-standard path.
+10.Many other minor bug fixes and improvements over the remaining functions.
+
 Functions that are added over the original:
 1. A method to make the browser visible and invisible.
 2. New methods to create and manage multiple tabs at the same time.
@@ -14,11 +30,13 @@ Functions that are added over the original:
   
 **For Demo**
 
-The demo file has been prepared to help you get on-board easily with the framework. You can download the CDP Framework Excel macro file (.xlsm).
+Open CDP Framework.xlam and look for the module named "Demo" inside there.
 
 **For Installation**
 
-You can download the module files in the import folder and add them to your VBA application using the Import Modules option in the VBIDE screen. Or you can also use the modules already setup in the demo file mentioned above. All these files have been packaged in the Release section as a .zip file for ease of downloading. Note that the modules require Microsoft Scripting Runtime reference for the Dictionary object to work.
+1. Download CDP Framework.xlam and open it.
+2. Copy CDPBrowser, CDPCore, CDPElement, CDPJConv classes over to your VBA project.
+3. Make sure your project has Microsoft Scripting Runtime reference.
 
 **Notes**
 
