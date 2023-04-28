@@ -8,7 +8,8 @@ This method enables direct automation with Chromium-based web browsers for VBA w
 Features added on v2.6:
 1. Added .sendKeys for CDPElement class. This sendkeys method can send text inputs directly even to a specific element and mimicks human native input.
 2. Enhanced .value property of CDPElement class to auto-detect React-type form fields and set value in the right way to trigger React field script.
-3. New examples in the demo module added to showcase (1) & (2).
+3. Enhance .getIFrame to detect if the targetted iFrame is hosted in another domain which will then require indirect automation on the frame.
+4. New examples in the demo module added to showcase (1) & (2).
 
 Features added on v2.5:
 1. Added getElementByID, getElementByQuery (querySelector equivalence), getElementByXPath, getElementsByQuery, getElementsByXPath.
