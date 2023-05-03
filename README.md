@@ -5,6 +5,10 @@ This is a method to directly automate Chromium-based web browsers, such as Chrom
 
 This method enables direct automation with Chromium-based web browsers for VBA without the need for a third-party software like SeleniumBasic. The framework also includes many examples and useful functions added to the original repository while keeping the whole design as simple as possible to help you understand and get started quickly with deploying the CDP framework for your VBA solutions.
 
+Features added on v2.7:
+1. Enhanced .newTab and .getTab to be able to set the tab as new main CDP session via the setMain argument.
+2. Session handling and attachment will now be based on the tab ID instead of session ID as session ID is volatile.
+
 Features added on v2.6:
 1. Added .sendKeys for CDPElement class. This sendkeys method can send text inputs directly even to a specific element and mimicks human native input.
 2. Enhanced .value property of CDPElement class to auto-detect React-type form fields and set value in the right way to trigger React field script.
