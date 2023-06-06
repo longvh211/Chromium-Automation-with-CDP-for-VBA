@@ -8,6 +8,8 @@ This method enables direct automation with Chromium-based web browsers for VBA w
 Features added on v2.7:
 1. Enhanced .newTab and .getTab to be able to set the tab as new main CDP session via the setMain argument.
 2. Session handling and attachment will now be based on the tab ID instead of session ID as session ID is volatile.
+3. Added compatibility for Access & Word.
+4. Added isExist method for CDPElement class to check if an element is found. Unlike onExist which will wait until the element is found which can only be useful for certain scenarios, isExist will just do the check, which shall be usefull in all cases.
 
 Features added on v2.6:
 1. Added .sendKeys for CDPElement class. This sendkeys method can send text inputs directly even to a specific element and mimicks human native input.
