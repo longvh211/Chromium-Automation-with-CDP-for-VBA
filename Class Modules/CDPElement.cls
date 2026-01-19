@@ -183,6 +183,7 @@ Property Let value(strTextVal As String)
         main.jsEval getVarID & ".value = """ & strTextVal & """", printDbgMsg
     Else
         main.jsEval "Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(" & getVarID & ", '" & strTextVal & "')"
+        main.jsEval "Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, ""value"").set.call(" & getVarID & ", """ & strTextVal & """)"
     End If
 
    'Most input elements need this
