@@ -6,6 +6,7 @@
 ' Contributors:
 '       Long Vh (long.hoang.vu@hsbc.com.sg)
 ' Last Update :
+'       22/01/26 Long Vh: added demoMultiProfileOperation and demoReattachment examples
 '       07/01/26 Long Vh: update the sub procedures to show case the new .notify function
 '       27/04/23 Long Vh: made many improvements with v2.5 to make methods even more intuitive.
 '       07/06/22 Long Vh: corrected typos in comments + more examples
@@ -38,7 +39,7 @@ Sub runEdge()
    'If reAttach = False, .start will not automatically try to reattach
    'to previous instances open by CDP but will start a brand new instead.
     Dim edge As New CDPBrowser
-    edge.start "edge", cleanActive:=True, reAttach:=True
+    edge.start "edge", cleanActive:=True
  
    'Navigate and wait
    'If till argument is omitted, will by default wait until ReadyState = complete
@@ -97,7 +98,7 @@ Sub runTabsAsOne()
 '--------------------------------------------------------------------------
  
     Dim chrome As New CDPBrowser
-    chrome.start reAttach:=False
+    chrome.start
     chrome.show
     
    'Automate Tabs
@@ -120,7 +121,7 @@ Sub runTabsAsMany()
 '-------------------------------------------------------------------------------
  
     Dim chrome As New CDPBrowser
-    chrome.start reAttach:=False
+    chrome.start
     chrome.show
  
    'Create and assign tabs
@@ -197,7 +198,7 @@ Sub runIFrame()
     demoUrl = "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_height_width"
     
     Dim chrome As New CDPBrowser
-    chrome.start appUrl:=demoUrl, reAttach:=False
+    chrome.start appUrl:=demoUrl
     
     Dim iFrame1 As CDPElement
     Dim iFrame2 As CDPElement
@@ -286,9 +287,91 @@ Sub switchMain()
 '---------------------------------------------------------------
 
     Dim chrome As New CDPBrowser
-    chrome.start "edge", reAttach:=False
+    chrome.start "edge"
     chrome.newTab "google.com", setMain:=True   'the chrome object will now directly refer to the Google tab
     chrome.getTab("about:blank").closeTab       'prior 2.7, the next line will throw an error due to no main-switching mechanism
     chrome.printParams
+
+End Sub
+
+Sub demoMultiProfileOperation()
+'----------------------------------------------------------------------------------------
+' This example demonstrates a powerful feature of v3.1 called multi-instances operation.
+' Under multi-instances, our framework can open browsers as separate independent
+' instances; thereby enables advanced automation tactics such as robotic process
+' automation and asynchronous operation. The procedure below attempts to open 2 CDP
+' instances and runs at the same time asynchronously - something that VBA natively does
+' not support. You will be able to see from the Immediate Window that (1) execBot2 is
+' started first then execBot1 and (2) both bot operations run simultaneously and bot 1
+' finishes first (likely as yahoo.com has less thing to load then finance.yahoo.com)
+' even though it is started after bot 2. This implies that thanks to the multi-
+' instances framework, we can achieve asynchronous operation.
+'
+' Without this feature, the closest to this application is to open a CDP session with
+' multiple tabs but in that scenario, you can not achieve asynchronous operation as
+' Chrome Devtools Protocol is tied to a single user profile so automation on a tab has
+' to wait for one another. Additionally, if one tab causes the browser to crash, other
+' running tabs will crash as well.
+'----------------------------------------------------------------------------------------
+
+    Application.OnTime Now + TimeValue("00:00:01"), "execBot1"
+    execBot2
+
+End Sub
+
+Function execBot1()
+'----------------------------------------------------------------------------------------
+' Refer to the demoMultiProfileOperation
+'----------------------------------------------------------------------------------------
+    
+    Debug.Print Format(Now, "hh:mm:ss") & " execBot1 started."
+    
+    Dim e1 As New CDPBrowser
+    e1.start userProfile:="CDP1"
+    e1.navigate "yahoo.com"
+    
+    Debug.Print Format(Now, "hh:mm:ss") & " execBot1 completed."
+
+End Function
+
+Function execBot2()
+'----------------------------------------------------------------------------------------
+' Refer to the demoMultiProfileOperation
+'----------------------------------------------------------------------------------------
+
+    Debug.Print Format(Now, "hh:mm:ss") & " execBot2 started."
+
+    Dim e2 As New CDPBrowser
+    e2.start userProfile:="CDP2"
+    e2.navigate "finance.yahoo.com"
+    
+    Debug.Print Format(Now, "hh:mm:ss") & " execBot2 completed."
+
+End Function
+
+Sub demoReattachmentPart1()
+'----------------------------------------------------------------------------------------
+' From v3.1, .reattach is necessary to perform reattachment to the current CDP instances
+' as each instance is now identified with a unique user profile for multi-instances
+' operation. The below procedure starts a new CDP session under profile CDP2. After
+' running demoReattachmentPart1, you can run demoReattachmentPart2 to see the correct
+' way of applying .reattach to the CDP2 session.
+'----------------------------------------------------------------------------------------
+
+    Dim c As New CDPBrowser
+    c.start userProfile:="CDP2"
+    c.navigate "google.com"
+
+End Sub
+
+
+Sub demoReattachmentPart2()
+'----------------------------------------------------------------------------------------
+' See notes in demoReattachmentPart1
+'----------------------------------------------------------------------------------------
+
+    Dim c As New CDPBrowser
+    If c.reattach("CDP2") = True Then c.navigate "wikipedia.com" _
+    Else Debug.Print "Failed to reattach. Perhaps the reattach profile CDP2 is incorrect?"
 
 End Sub
