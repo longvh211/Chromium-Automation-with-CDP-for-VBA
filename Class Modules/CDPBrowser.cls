@@ -7,6 +7,10 @@
 '       Long Vh (long.hoang.vu@hsbc.com.sg)
 '       Daniel Polak (SYS, Supporting Your Systems B.V.)
 ' Last Update :
+'       22/01/26 Long Vh:      - some tweaks to the .start method to improve the usage of user-data-dir switch
+'                              - enhanced the framework with a new feature called multi-instances operation (see demo example demoMultiProfileOperation)
+'                              - removed auto reattach feature from the framework and added .reattach method to suit
+'                                the new multi-instances operation feature
 '       31/12/25 Daniel Polak: - added BringWindowToTop and bringtoforeground
 '       24/10/25 Daniel Polak: - sendMessage: added soft re-attach attempt when pipe error
 '                              - snapPage: added CDP native screenshot capability which avoids use of external JavaScript library
@@ -49,7 +53,7 @@
 
 Option Explicit
 
-Private Const CDPVer As String = "3.0.0"
+Private Const CDPVer As String = "3.1.0"
 
 '===================================
 ' Win APIs Declarations
@@ -138,7 +142,7 @@ Private brID As String                  'The ID of the current CDPBrowser object
 Private brName As String                'The focused tab name / window name of the active CDPBrowser
 Private brURL As String                 'The focused tab url of the active CDPBrowser
 Private brVer As String                 'The current browser version
-Private brReAttach As Boolean           'Remember reAttach preference from start()
+Private brReAttach As Boolean           'Remember reAttach preference from .reattach method - updated by Long 22/01/2026
 Private brCallString As String          'The initial call string used by .start
 Private varIDs As Scripting.Dictionary  'Collection of all unique element IDs for CDPElement reference - Added 02/03/2023
 Private sessionID As String             'The ID to the current session tab.
@@ -151,8 +155,8 @@ Public thisApp As Object                'A dymanic variable used in CDPBrowser i
 
 Public Function start(Optional name As String = "chrome", _
     Optional appUrl As String, _
-    Optional cleanActive As Boolean = True, Optional reAttach As Boolean = True, _
-    Optional userProfile As String = "CDP", Optional addArgs As String)
+    Optional cleanActive As Boolean = True, _
+    Optional userProfile As String = "CDP1", Optional addArgs As String)
 '--------------------------------------------------------------------------------------------------------------
 ' This function initiates a new browser instance.
 ' By default, this function initializes chrome as the default choice.
@@ -170,6 +174,11 @@ Public Function start(Optional name As String = "chrome", _
 '          26/03/23 Long Vh:      - Made some quality-of-life changes
 '          25/05/25 Long Vh:      - set default profile to "CDP" so that it can work with the latest chrome update
 '          23/10/25 Daniel Polak: - Added missing space before --homepage
+'          22/01/26 Long Vh:      - Removed automatic reattachment from the start method as this restricts
+'                                   the possibility of running multiple CDP browser instances under different
+'                                   profiles - which is a very useful feature.
+'                                 - Tweaked the addProfile section and the cleanUpSessions to reflect the
+'                                   recent Chromium updates and the Edge policy discovery.
 '--------------------------------------------------------------------------------------------------------------
 
     Dim strCall As String, strLoc As String, addProfile As String
@@ -177,16 +186,6 @@ Public Function start(Optional name As String = "chrome", _
     Dim timerStart As Single, timeStart As Single, timerOut As Single
 
     timeStart = Timer
-    brReAttach = reAttach
-
-   'Determine if already open -----------------------------------------------------
-    If reAttach And isLive Then
-        printParams     'Useful for checking
-        Exit Function
-    End If
-    printMsg "Reattachment aborted as reAttach=" & reAttach & " & isLive=" & isLive
-    printMsg "New Browser Session Started", isHeader:=True
-   '-------------------------------------------------------------------------------
 
    'Determine default browser parameters -------------------------------------------------------------------------------------
    '07/01/26: avoid using --enable-automation tag as it triggers many web apps to perform bot check
@@ -210,21 +209,34 @@ Public Function start(Optional name As String = "chrome", _
    '-------------------------------------------------------------------------------------------------------------------------------------------------------
 
    'Start with the choice profile -------------------------------------------------------------------------------------------------------------
-   '25/05/25: Calling on different profiles on Edge uses --profile-directory instead of --user-data-dir like that of Chrome
-    brUser = userProfile
+   '22/01/26: I have recently noted that if an organization sets the group policy of Edge of UserDataDir to a specific structure, the argument --user-data-dir
+   'will be effectively disabled and blocked to the specified data dir by the policy. In this scenario, CDP session can only load the browser state from the default
+   'data dir which already cannot be allowed to run --remote-debugging-pipe from Google's latest Chromium. If Edge's Chromium updates to the latest, this policy will
+   'cause the CDP initialization to fail. If Edge's Chromium is still behind the latest Chromium version, CDP init can still be possible with the --profile-directory
+   'switch but the requirement is that all running Edge instances that had been started up manually will need to be closed first otherwise the PeekNamedPipe error
+   'will result. For Chrome, v136 and later does not honor remote-debugging request if user profile is loaded from the Chrome\User Data\ folder.
+   'As a result, here we set it to Chrome\CDP\ folder instead (auto-created if not exists)
     Select Case brType
         Case brEdge:
-            addProfile = " --profile-directory=""" & userProfile & """"
+            addProfile = " --user-data-dir=""" & Environ("LOCALAPPDATA") & "\Microsoft\Edge\CDP\" & userProfile & """" & " --profile-directory=""Default"""
+'            addProfile = " --profile-directory=""" & userProfile & """" 'Use this switch instead if your organization disables UserDataDir with policy
         Case brChrome:
-            addProfile = " --user-data-dir=""" & Environ("LOCALAPPDATA") & "\Google\Chrome\User Data\" & userProfile & """"
+            addProfile = " --user-data-dir=""" & Environ("LOCALAPPDATA") & "\Google\Chrome\CDP\" & userProfile & """" & " --profile-directory=""Default"""
     End Select
     strCall = strCall & addProfile
+    brUser = userProfile 'store the user profile name for cpid serialization
    '-----------------------------------------------------------------------------------------------------------------------------------------
-
+    
+   'Clean up previous sessions if they could not be reattached to avoid PeekNamedPipe error --------------------------------------------
+   'Note: The error usually occurs when the same User Profile is already being used by another pipe. Hence if this
+   'session is unable to connect to the previous pipe (for instance, due to the session application host was abruptly terminated),
+   'PeekNamedPipe error will be thrown.
+    If cleanActive Then cleanUpSessions onlyCdpSessions:=IIf(brType = brEdge, False, True)  'Note: you can set onlyCdpSessions to True by default if your organization does not force UserDataDir policy
+    setCrashStateNormal 'Prevent "Restore Session" popup
+   '------------------------------------------------------------------------------------------------------------------------------------
+    
    'Prepare for initialization ------------------------------------------------------------------------
-    strCall = strCall & " " & addArgs    'Add additional arguments if instructed
-    If cleanActive Then cleanUpSessions  'Clean up all running browser instances to prevent pipe error
-    setCrashStateNormal                  'Prevent "Restore Session" popup
+    strCall = strCall & " " & addArgs  'Add additional arguments if instructed
    '---------------------------------------------------------------------------------------------------
 
    'Initialize CDPCore class ----------------------------------------------------------------------------------------------------------
@@ -232,7 +244,7 @@ Public Function start(Optional name As String = "chrome", _
     brCallString = strCall
     intRes = core.init(brCallString, aboolSerializable:=True)  'Serializable is set to True by default for ease of accessibility
     If intRes <> 0 Then printMsg "Unable to initialize CDPCore", doRaiseError:=True Else printMsg "CDPCore initialized successfully"
-    lngLastID = 1
+    lngLastID = 1 'reset the pipe message ID
    '-----------------------------------------------------------------------------------------------------------------------------------
 
    'Complete initialization ------------------------------------------------------
@@ -269,6 +281,9 @@ Private Function serialize() As String
 ' session with a known serial.
 ' Updated: 03/05/23 - Replace sessionID with targetID since it is
 '                     constant and stable on every CDP session
+'          22/01/26 - Added specification to user profile name to
+'                     the cpid file name to allow targetting of
+'                     specific profile for reattachment.
 '------------------------------------------------------------------
 
     Dim objSerialize As New Scripting.Dictionary
@@ -283,7 +298,7 @@ Private Function serialize() As String
     printMsg "New serial string: " & serialize
 
    'Write CdpSessionID to Temp folder
-    f = Environ("TEMP") & "\cdpid.txt"
+    f = Environ("TEMP") & "\" & Replace$(LCase$(brUser), " ", "") & ".cdpid.txt"
     intF = FreeFile
     Open f For Binary As #intF
         Put #intF, 1, serialize
@@ -580,10 +595,12 @@ Public Function newTab(Optional url As String, Optional newWindow As Boolean, Op
 ' This returns the Session ID of the newly created tab.
 ' Updated: 20/03/23 Return the result as a new Browser object
 '          26/04/23 Format url argument to accept simplified input
+'          22/01/26 Added .reattach where appropriate
 '------------------------------------------------------------------
 
     Dim params As New Scripting.Dictionary
     Dim SessionID_ As String
+    
     If url <> "" Then url = IIf(url <> "about:blank" And InStr(url, "http") = 0, "http://" & url, url)
     params("url") = CStr(url)
     If newWindow Then params("newWindow") = CBool(newWindow)
@@ -597,8 +614,10 @@ Public Function newTab(Optional url As String, Optional newWindow As Boolean, Op
     SessionID_ = attachToTab(tabId)
 
    'Switch attachment to the new tab
+   '22/01/26: From v3.1, reattachment is no longer automatic so .reattach is needed
     printMsg "newTab will now open a new CDP instance"
     Set newTab = New CDPBrowser
+    newTab.reattach brUser
     newTab.id = SessionID_
     If url <> "" Then newTab.wait
 
@@ -612,7 +631,7 @@ Public Function newTab(Optional url As String, Optional newWindow As Boolean, Op
 End Function
 
 Public Function getTab(Optional tabName As String, Optional url As String, Optional setMain As Boolean, Optional doRetry As Boolean = False) As CDPBrowser
-'------------------------------------------------------------------
+'-----------------------------------------------------------------------------------------------------------------------------------------------------
 ' Search and find the Session ID of the tab already open based on
 ' its name or its url. tabName and url arguments can be partial. By
 ' omitting both these arguments, getTab will try to attach to the
@@ -622,7 +641,8 @@ Public Function getTab(Optional tabName As String, Optional url As String, Optio
 '         24/10/25 Daniel Polak - Predictable, precise, and script-friendly tab selection that scales well when there are many similar tabs open
 '                                 Exact title and URL-prefix matching avoids accidentally selecting tabs with similar titles/URLs
 '         23/10/25 Daniel Polak - Fixed typo timeStart instead of timerStart and fixed bug 60000s instead of 60s
-'------------------------------------------------------------------
+'         22/01/26 Long Vh      - Added .reattach where appropriate
+'-----------------------------------------------------------------------------------------------------------------------------------------------------
 
     Dim results As Scripting.Dictionary, obj As Scripting.Dictionary
     Dim tabId As String, candidateTabId As String, ErrMsg As String
@@ -705,7 +725,9 @@ searchfound:
     SessionID_ = attachToTab(tabId)
 
    'Return the new CDP object
+   '22/01/26 .reattach brUser is needed from v3.1 onwards to enable multi-instances automation
     Set getTab = New CDPBrowser
+    getTab.reattach brUser
     getTab.id = SessionID_  'will also update the targetID
     sleep 'give some time so that the debugging session can switch to the new tab
 
@@ -727,7 +749,7 @@ Public Function closeTab()
 
    'Get the original serialized tab ID
     Dim mainID As Variant, serial As Variant
-    serial = getSerialString
+    serial = getSerialString()
     mainID = core.jsConverter.ParseJson(serial).Item("targetID")
     If targetID = mainID Then
         printMsg "Unable to close this tab " & targetID & " as it is the main session tab"
@@ -974,6 +996,31 @@ Public Function jsAddScript(strLocalScriptPath)
     printMsg "Successfully added the local script: """ & strLocalScriptPath & """"
 
     Set fso = Nothing
+
+End Function
+
+Public Function reattach(Optional userProfile As String = "CDP1") As Boolean
+'----------------------------------------------------------------------------------
+' Reattach to the target CPID file. This method enables the management of multiple
+' CDP instances at once under different Chrome/Edge user profiles. The benefit of
+' this is that if one instance fails/crashes, it does not affect the other ones.
+' and thus enables the possibility of running multiple CDP automation operations
+' on entirely different tasks simultaneously.
+'----------------------------------------------------------------------------------
+    
+    Dim strSerialized As String
+    
+    brUser = userProfile
+    strSerialized = getSerialString()
+    deserialize strSerialized
+    
+    If isLive Then
+        reattach = True
+        printParams
+    Else
+        reattach = False
+        printMsg "Failed to reattach to previous CPID."
+    End If
 
 End Function
 
@@ -1644,7 +1691,7 @@ Private Function getHandle() As LongPtr
 
 End Function
 
-Private Function cleanUpSessions()
+Private Function cleanUpSessions(Optional onlyCdpSessions As Boolean = True)
 '-----------------------------------------------------------------------------------------------------------------------------------------
 ' Provides cleaning before firing up a new session to prevent
 ' pipe error
@@ -1665,7 +1712,7 @@ Private Function cleanUpSessions()
     On Error Resume Next
     For Each proc In GetObject("winmgmts:").ExecQuery("Select * from Win32_Process Where SessionId = " & lSessionId)
         If LCase$(proc.name) = LCase$(brType) Then
-            If InStr(1, proc.CommandLine, "--remote-debugging-pipe", vbTextCompare) > 0 Then proc.Terminate
+            If Not onlyCdpSessions Then proc.Terminate Else If InStr(proc.CommandLine, "--remote-debugging-pipe") And InStr(proc.CommandLine, brUser) Then proc.Terminate
         End If
         DoEvents
     Next
@@ -1682,13 +1729,15 @@ Private Function cleanUpSessions()
 
 End Function
 
-Private Sub setCrashStateNormal()
+Private Function setCrashStateNormal()
 '------------------------------------------------------------------
 ' Set Crashed state to Normal to prevent the "Restore Sessions?"
 ' popup from appearing every time the browser is started after
 ' being closed by browser.quit method.
 ' Requires user data dir profile stored in private var brUser and
 ' the browser type stored in private variable brType.
+' Update: 22/01/26 - Tweaked to work well with the new multi-instance
+'                    structure.
 '------------------------------------------------------------------
 
     Dim strPrefFolder As String, strFilePath As String
@@ -1697,13 +1746,13 @@ Private Sub setCrashStateNormal()
 
    'Mark 'Normal' on the preference file to prevent Restore Page popup on start
    'This file locates at %localappdata%/Google/User Data/Default/Preferences
-    If brUser = "Default" Then strPrefFolder = brUser Else strPrefFolder = brUser & "\Default"
     Select Case brType
-        Case brChrome: strFilePath = Environ("LOCALAPPDATA") & "\Google\Chrome\User Data\" & strPrefFolder & "\Preferences"
-        Case brEdge:   strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\" & strPrefFolder & "\Preferences"
+        Case brChrome: strFilePath = Environ("LOCALAPPDATA") & "\Google\Chrome\User Data\CDP\" & brUser & "\Preferences"
+        Case brEdge:   strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\CDP\" & brUser & "\Preferences"
+'        Case brEdge:   strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\" & brUser & "\Preferences"  'Use this switch instead if your organization disables UserDataDir with policy
     End Select
 
-    If LenB(Dir(strFilePath)) = 0 Then Exit Sub
+    If LenB(Dir(strFilePath)) = 0 Then Exit Function
 
     intF = FreeFile
     Open strFilePath For Binary As #intF
@@ -1722,7 +1771,7 @@ Private Sub setCrashStateNormal()
 
     printMsg "setCrashStateNormal completed"
 
-End Sub
+End Function
 
 Private Function attachToTab(tabId As String) As String
 '----------------------------------------------------------------------------------
@@ -1759,14 +1808,18 @@ Private Function getSerialString() As String
 ' Check if a SessionID has already been created to determine if an automated
 ' browser session is already on going. The return is a Serialized String in which
 ' SessionID is a part of the serials.
-' Updated: 02/03/2023
+' Updated: 21/01/2026
 '----------------------------------------------------------------------------------
 
     Dim strContents As String
     Dim intF As Integer
     Dim strFName As String
-
-    strFName = Environ("TEMP") & "\cdpid.txt"
+    
+   'Append user profile to the cpid file name for specific targetting
+   'This is usually needed when multiple instances of CDP are running and subsequent calls
+   'need to point to different CPIDs from time to time to reattach
+    strFName = Environ("TEMP") & "\" & Replace$(LCase$(brUser), " ", "") & ".cdpid.txt"
+    
     If Len(Dir(strFName)) > 0 Then
         deleteCDPID True
         intF = FreeFile
@@ -1870,55 +1923,14 @@ Private Function getSessionInfo()
 
 End Function
 
-Private Sub Class_Initialize()
-'----------------------------------------------------------------------------------
-' A quick way to quickly check if an automated session is already active and open.
-' If so, automatically attempt to reattach to it.
-' Updated: 07/06/23
-'          22/10/25 Daniel Polak - prevent compilation errors because depending on whether we are running in Excel, Word or Access only one of ThisWorkbook, ActiveDocument and CurrentProject is available
-'----------------------------------------------------------------------------------
-
-   'Determine project host type for compatibility
-   'CallByName is used to avoid errors on object names not existing during compilation
-    Select Case True
-        Case InStr(Application.name, "Excel"):  Set thisApp = CallByName(Application, "ThisWorkbook", VbGet)
-        Case InStr(Application.name, "Word"):   Set thisApp = CallByName(Application, "ActiveDocument", VbGet)
-        Case InStr(Application.name, "Access"): Set thisApp = CallByName(Application, "CurrentProject", VbGet)
-    End Select
-
-   'Assign an objID for easy debug identification
-    brID = "BRID" & Format(Rnd * 1000, "000")
-
-   'Check for SessionID created
-    Dim strSerialized As String: strSerialized = getSerialString
-    If strSerialized = "" Then Exit Sub
-
-   'Attempt to reattach and check if successful
-    deserialize strSerialized
-
-    If Not isLive Then
-        lngLastID = 0   'To make a clean slate for new session
-        sessionID = ""  'No need to clean targetID as it will be retrieved anyway
-        printMsg "Failed to reattach using the previous session parameters"
-        Exit Sub
-    End If
-
-   'Obtain instance useful info if already live
-    printMsg "Browser ID : " & brID & vbNewLine & _
-             "Tab ID     : " & targetID, isHeader:=True
-    printMsg brID & " successfully attached to Tab ID " & targetID
-    getSessionInfo
-
-End Sub
-
-Private Sub deleteCDPID(ByVal blnOnlyDeleteIfCreatedBeforeToday As Boolean)
+Private Function deleteCDPID(ByVal blnOnlyDeleteIfCreatedBeforeToday As Boolean)
 '----------------------------------------------------------------------------------
 ' By: Daniel Polak
 '----------------------------------------------------------------------------------
 
     Dim strFName As String
 
-    strFName = Environ("TEMP") & "\cdpid.txt"
+    strFName = Environ("TEMP") & "\" & Replace$(LCase$(brUser), " ", "") & ".cdpid.txt"
     If Len(Dir(strFName)) > 0 Then
         If blnOnlyDeleteIfCreatedBeforeToday = False Or DateDiff("d", FileDateTime(strFName), Now) > 0 Then
             On Error Resume Next
@@ -1927,9 +1939,9 @@ Private Sub deleteCDPID(ByVal blnOnlyDeleteIfCreatedBeforeToday As Boolean)
         End If
     End If
 
-End Sub
+End Function
 
-Private Sub SaveBase64ToFile(strB64 As String, strPath As String)
+Private Function SaveBase64ToFile(strB64 As String, strPath As String)
 '----------------------------------------------------------------------------------
 ' Decode a base64 string and save to file without external dependencies (late bound).
 '----------------------------------------------------------------------------------
@@ -1949,6 +1961,28 @@ Private Sub SaveBase64ToFile(strB64 As String, strPath As String)
     stm.SaveToFile strPath, 2
     stm.Close
 
+End Function
+
+Private Sub Class_Initialize()
+'----------------------------------------------------------------------------------
+' A quick way to quickly check if an automated session is already active and open.
+' If so, automatically attempt to reattach to it.
+' Updated: 07/06/23
+'          22/10/25 Daniel Polak - prevent compilation errors because depending on whether we are running in Excel, Word or Access only one of ThisWorkbook, ActiveDocument and CurrentProject is available
+'          22/01/26 Long Vh - removed the auto deserialization feature to running multiple instances of browser profiles.
+'----------------------------------------------------------------------------------
+
+   'Determine project host type for compatibility
+   'CallByName is used to avoid errors on object names not existing during compilation
+    Select Case True
+        Case InStr(Application.name, "Excel"):  Set thisApp = CallByName(Application, "ThisWorkbook", VbGet)
+        Case InStr(Application.name, "Word"):   Set thisApp = CallByName(Application, "ActiveDocument", VbGet)
+        Case InStr(Application.name, "Access"): Set thisApp = CallByName(Application, "CurrentProject", VbGet)
+    End Select
+
+   'Assign an objID for easy debug identification
+    brID = "BRID" & Format(Rnd * 1000, "000")
+    
 End Sub
 
 '===============================================================================================
