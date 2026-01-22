@@ -18,9 +18,9 @@ Public Function newBrowser(Optional customLogPath As String = "", Optional doPri
 ' spamming information but if needed, simply switch them to true.
 '------------------------------------------------------------------
 
-    logPath = customLogPath  'Set custom log path
-    doPrintDbgMsg = doPrintDbgMsg
-    doLog = doLog
+    init.customLogPath = customLogPath
+    init.doPrintDbgMsg = doPrintDbgMsg
+    init.doLog = doLog
     Set newBrowser = New CDPBrowser
 
 End Function
