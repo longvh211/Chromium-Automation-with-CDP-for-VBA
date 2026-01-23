@@ -215,7 +215,9 @@ Public Function start(Optional name As String = "chrome", _
    'cause the CDP initialization to fail. If Edge's Chromium is still behind the latest Chromium version, CDP init can still be possible with the --profile-directory
    'switch but the requirement is that all running Edge instances that had been started up manually will need to be closed first otherwise the PeekNamedPipe error
    'will result. For Chrome, v136 and later does not honor remote-debugging request if user profile is loaded from the Chrome\User Data\ folder.
-   'As a result, here we set it to Chrome\CDP\ folder instead (auto-created if not exists)
+   'As a result, here we set it to Chrome\CDP\ folder instead (auto-created if not exists).
+   'Additionally, Multi-Instances Operation requires that each instance is assigned to a different user data folder (not profile - each user data folder can have multiple profiles).
+   'as a result, if your organization blocks with edge policy, multi-instances operation will not work there. You will have to enable the line with the switch --profile-directory instead.
     Select Case brType
         Case brEdge:
             addProfile = " --user-data-dir=""" & Environ("LOCALAPPDATA") & "\Microsoft\Edge\CDP\" & userProfile & """" & " --profile-directory=""Default"""
@@ -226,7 +228,7 @@ Public Function start(Optional name As String = "chrome", _
     strCall = strCall & addProfile
     brUser = userProfile 'store the user profile name for cpid serialization
    '-----------------------------------------------------------------------------------------------------------------------------------------
-    
+
    'Clean up previous sessions if they could not be reattached to avoid PeekNamedPipe error --------------------------------------------
    'Note: The error usually occurs when the same User Profile is already being used by another pipe. Hence if this
    'session is unable to connect to the previous pipe (for instance, due to the session application host was abruptly terminated),
@@ -234,7 +236,7 @@ Public Function start(Optional name As String = "chrome", _
     If cleanActive Then cleanUpSessions onlyCdpSessions:=IIf(brType = brEdge, False, True)  'Note: you can set onlyCdpSessions to True by default if your organization does not force UserDataDir policy
     setCrashStateNormal 'Prevent "Restore Session" popup
    '------------------------------------------------------------------------------------------------------------------------------------
-    
+
    'Prepare for initialization ------------------------------------------------------------------------
     strCall = strCall & " " & addArgs  'Add additional arguments if instructed
    '---------------------------------------------------------------------------------------------------
@@ -316,7 +318,7 @@ Private Function deserialize(strSerialized As String)
 '                     constant and stable on every CDP session
 '------------------------------------------------------------------
 
-    On Error GoTo iferr
+    On Error GoTo ifErr
 
     Dim objSerialize As Scripting.Dictionary
     Set core = New CDPCore
@@ -328,7 +330,7 @@ Private Function deserialize(strSerialized As String)
 5   sessionID = attachToTab(targetID)
     Exit Function
 
-iferr: 'if deserialize fails, simply move on to starting anew
+ifErr: 'if deserialize fails, simply move on to starting anew
 
     printMsg "deserialization failed at line " & Erl & " for serial string " & strSerialized
 
@@ -466,13 +468,13 @@ Public Function isLive() As Boolean
 ' Original Name: connectionAlive
 '-----------------------------------------------------------------------------------
 
-    On Error GoTo iferr
+    On Error GoTo ifErr
     Dim strLoc As String
     strLoc = jsEval("window.location.href", dbgMsg:=False)
     isLive = True
     Exit Function
 
-iferr:
+ifErr:
     isLive = False
 
 End Function
@@ -600,7 +602,7 @@ Public Function newTab(Optional url As String, Optional newWindow As Boolean, Op
 
     Dim params As New Scripting.Dictionary
     Dim SessionID_ As String
-    
+
     If url <> "" Then url = IIf(url <> "about:blank" And InStr(url, "http") = 0, "http://" & url, url)
     params("url") = CStr(url)
     If newWindow Then params("newWindow") = CBool(newWindow)
@@ -740,7 +742,7 @@ searchfound:
 
 End Function
 
-Public Function closeTab()
+Public Function closeTab() As Boolean
 '------------------------------------------------------------------
 ' Close the current tab of the session. Requires targetId which can
 ' be retrieved by using getTargetId. This is the targetId of the
@@ -760,6 +762,9 @@ Public Function closeTab()
     params("targetId") = CStr(getTargetID)
     invokeMethod "Target.closeTarget", params
     printMsg brID & " was closed"
+
+   'Return the function result
+    closeTab = True
 
 End Function
 
@@ -1007,13 +1012,13 @@ Public Function reattach(Optional userProfile As String = "CDP1") As Boolean
 ' and thus enables the possibility of running multiple CDP automation operations
 ' on entirely different tasks simultaneously.
 '----------------------------------------------------------------------------------
-    
+
     Dim strSerialized As String
-    
+
     brUser = userProfile
     strSerialized = getSerialString()
     deserialize strSerialized
-    
+
     If isLive Then
         reattach = True
         printParams
@@ -1712,7 +1717,11 @@ Private Function cleanUpSessions(Optional onlyCdpSessions As Boolean = True)
     On Error Resume Next
     For Each proc In GetObject("winmgmts:").ExecQuery("Select * from Win32_Process Where SessionId = " & lSessionId)
         If LCase$(proc.name) = LCase$(brType) Then
-            If Not onlyCdpSessions Then proc.Terminate Else If InStr(proc.CommandLine, "--remote-debugging-pipe") And InStr(proc.CommandLine, brUser) Then proc.Terminate
+            If InStr(proc.CommandLine, "--remote-debugging-pipe") Then  'a CDP process
+                If InStr(proc.CommandLine, brUser) Then proc.Terminate
+            Else                                                        'for browsers open manually
+                If Not onlyCdpSessions Then proc.Terminate
+            End If
         End If
         DoEvents
     Next
@@ -1743,33 +1752,38 @@ Private Function setCrashStateNormal()
     Dim strPrefFolder As String, strFilePath As String
     Dim strContents As String, strNewContents As String
     Dim intF As Integer
-
+    Dim paths As New Collection, p As Variant
+       
+    paths.Add Environ("LOCALAPPDATA") & "\Google\Chrome\User Data\CDP\" & brUser & "\Preferences"
+    paths.Add Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\CDP\" & brUser & "\Preferences"
+    paths.Add strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\" & brUser & "\Preferences"
+    
    'Mark 'Normal' on the preference file to prevent Restore Page popup on start
-   'This file locates at %localappdata%/Google/User Data/Default/Preferences
-    Select Case brType
-        Case brChrome: strFilePath = Environ("LOCALAPPDATA") & "\Google\Chrome\User Data\CDP\" & brUser & "\Preferences"
-        Case brEdge:   strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\CDP\" & brUser & "\Preferences"
-'        Case brEdge:   strFilePath = Environ("LOCALAPPDATA") & "\Microsoft\Edge\User Data\" & brUser & "\Preferences"  'Use this switch instead if your organization disables UserDataDir with policy
-    End Select
-
-    If LenB(Dir(strFilePath)) = 0 Then Exit Function
-
-    intF = FreeFile
-    Open strFilePath For Binary As #intF
-        strContents = Input$(LOF(intF), #intF)
-    Close #intF
-
-   'Precise replacement: only replace exit_type value
-    strNewContents = Replace(strContents, """exit_type"":""Crashed""", """exit_type"":""Normal""", 1, -1, vbBinaryCompare)
-
-    If strNewContents <> strContents Then
-        intF = FreeFile
-        Open strFilePath For Binary As #intF
-            Put #intF, 1, strNewContents
-        Close #intF
-    End If
-
-    printMsg "setCrashStateNormal completed"
+    For Each p In paths
+        strFilePath = p
+        If LenB(Dir(strFilePath)) > 0 Then
+        
+            intF = FreeFile
+            Open strFilePath For Binary As #intF
+                strContents = Input$(LOF(intF), #intF)
+            Close #intF
+        
+           'Precise replacement: only replace exit_type value
+            strNewContents = Replace(strContents, """exit_type"":""Crashed""", """exit_type"":""Normal""", 1, -1, vbBinaryCompare)
+        
+            If strNewContents <> strContents Then
+                intF = FreeFile
+                Open strFilePath For Binary As #intF
+                    Put #intF, 1, strNewContents
+                Close #intF
+            End If
+        
+            printMsg "setCrashStateNormal completed"
+            
+        End If
+    Next
+    
+    Set paths = Nothing
 
 End Function
 
@@ -1814,12 +1828,12 @@ Private Function getSerialString() As String
     Dim strContents As String
     Dim intF As Integer
     Dim strFName As String
-    
+
    'Append user profile to the cpid file name for specific targetting
    'This is usually needed when multiple instances of CDP are running and subsequent calls
    'need to point to different CPIDs from time to time to reattach
     strFName = Environ("TEMP") & "\" & Replace$(LCase$(brUser), " ", "") & ".cdpid.txt"
-    
+
     If Len(Dir(strFName)) > 0 Then
         deleteCDPID True
         intF = FreeFile
@@ -1982,7 +1996,7 @@ Private Sub Class_Initialize()
 
    'Assign an objID for easy debug identification
     brID = "BRID" & Format(Rnd * 1000, "000")
-    
+
 End Sub
 
 '===============================================================================================
