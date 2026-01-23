@@ -8,7 +8,7 @@
 ' is stored in the same folder as your VBA project file.
 '==============================================================================================================
 
-Public logPath As String            'Enables the host project to set a custom log path if needed
+Public customLogPath As String      'Enables the host project to set a custom log path if needed
 Public doPrintDbgMsg As Boolean     'If true then all CDP Debug.Print msgs will not be printed
 Public doLog As Boolean             'If true then no log will be produced at all
 
