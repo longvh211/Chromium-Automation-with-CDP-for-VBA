@@ -1185,7 +1185,6 @@ Public Function printParams()
 
     printMsg "Session ID    | sessionID | " & sessionID
     printMsg "Last ID       | lngLastID | " & lngLastID
-    printMsg "Window Handle | brHWnd    | " & brHWnd
     printMsg "Window ID     | brWId     | " & brWID
     printMsg "Browser Type  | brType    | " & brType
     printMsg "Browser Ver   | brVer     | " & brVer
@@ -1919,16 +1918,13 @@ End Function
 Private Function getSessionInfo()
 '----------------------------------------------------------------------------------
 ' Obtain session info on the fly for printParams.
-' Updated: 22/03/2023
+' Updated: 23/01/26 - remove the requirement to activate the window and the handle
+'                     retrieval
 '----------------------------------------------------------------------------------
-
-   'Activate to getHandle correctly
-    activate
 
    'Get infos
     brURL = url
     brName = name
-    brHWnd = getHandle
     brWID = invokeMethod("Browser.getWindowForTarget").Item("windowId")
     brType = invokeMethod("Browser.getVersion").Item("product")
     brVer = Split(brType, "/")(1)
@@ -2002,3 +1998,4 @@ End Sub
 '===============================================================================================
 ' Experimental Functions
 '===============================================================================================
+
